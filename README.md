@@ -67,4 +67,4 @@ IMAGE_HOST_URL
 CRON_SECRET
 ```
 
-Vercel cron calls `/api/cron/alerts` every 15 minutes. The local Node server still runs `node-cron` directly.
+Vercel Hobby cron calls `/api/cron/alerts` once daily. The local Node server still runs `node-cron` every 15 minutes.
