@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/dist/
+backend/public/
+.DS_Store
+attendance-calendar-qa.png
+.vercel

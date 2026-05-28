@@ -1,0 +1,15 @@
+{
+  "name": "earth-soil-erp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev -- --host 127.0.0.1",
+    "build:frontend": "npm --prefix frontend run build",
+    "copy:frontend": "node scripts/copy-frontend.mjs",
+    "build": "npm run build:frontend && npm run copy:frontend",
+    "vercel-build": "npm run build",
+    "start:backend": "npm --prefix backend start",
+    "smoke:test": "node scripts/smoke-test.mjs"
+  }
+}
