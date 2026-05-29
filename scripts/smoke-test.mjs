@@ -253,6 +253,32 @@ try {
     return true;
   });
 
+  const adminJob = await step("admin create future job", () =>
+    request(
+      "POST",
+      "/admin/create-job",
+      {
+        title: `Admin Smoke Job ${stamp}`,
+        materialTypeId: material._id,
+        requiredQuantity: 3,
+        unit: "Dumper",
+        startDate: "2026-06-10",
+        endDate: "2026-06-11",
+        sourceSiteId: holdingSite._id,
+        destinationSiteId: tempSite._id,
+        assignments: [{ driverId: driver._id, vehicleId: vehicle._id }]
+      },
+      adminToken
+    )
+  );
+  await step("admin jobs list includes created job", async () => {
+    const jobs = await request("GET", "/admin/jobs", null, adminToken);
+    const created = jobs.find((item) => item._id === adminJob._id);
+    assert(created, "Admin-created job missing from admin jobs list");
+    assert(created.assignments?.some((item) => item.driverId?._id === driver._id), "Admin-created job should keep assigned driver");
+    return created;
+  });
+
   const operatorLogin = await step("operator login", () => request("POST", "/auth/login", { phone: operator.phone, password: "init@123" }));
   const operatorToken = operatorLogin.token;
   const job = await step("operator create future job", () =>
@@ -316,6 +342,7 @@ try {
   await step("driver dashboard shows allocated job", async () => {
     const dashboard = await request("GET", "/driver/dashboard", null, driverToken);
     assert(dashboard.jobs?.some((item) => item._id === job._id), "Primary driver dashboard missing allocated job");
+    assert(dashboard.jobs?.some((item) => item._id === adminJob._id), "Primary driver dashboard missing admin-created job");
     assert(dashboard.attendance?.vehicleId?._id === vehicle._id, "Primary driver attendance vehicle mismatch");
     return dashboard;
   });
@@ -323,6 +350,7 @@ try {
     const jobs = await request("GET", "/driver/jobs", null, driverToken);
     const allocated = jobs.find((item) => item._id === job._id);
     assert(allocated, "Primary driver jobs missing allocated job");
+    assert(jobs.some((item) => item._id === adminJob._id), "Primary driver jobs missing admin-created job");
     assert(allocated.completedQuantity === 2, "Primary driver job progress mismatch");
     assert(allocated.progressLogs?.some((item) => item.driverId === driver._id && item.quantity === 2), "Primary driver job log missing selected driver");
     assert(allocated.requiredQuantity === 5, "Primary driver job quantity mismatch");

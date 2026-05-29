@@ -514,24 +514,63 @@ function OperatorJobs({ setNotice }) {
 
 function AdminJobs({ setNotice }) {
   const [jobs, setJobs] = useState([])
+  const [allJobs, setAllJobs] = useState([])
+  const [materials, setMaterials] = useState([])
+  const [sites, setSites] = useState([])
+  const [drivers, setDrivers] = useState([])
+  const [vehicles, setVehicles] = useState([])
+  const [form, setForm] = useState(emptyJob)
   const [dates, setDates] = useState({})
-  async function load() { setJobs((await api.get('/admin/expired-jobs')).data) }
+  async function load() {
+    const [expired, all, m, s, d, v] = await Promise.all([
+      api.get('/admin/expired-jobs'),
+      api.get('/admin/jobs'),
+      api.get('/common/materials'),
+      api.get('/common/sites'),
+      api.get('/common/drivers'),
+      api.get('/common/vehicles')
+    ])
+    setJobs(expired.data)
+    setAllJobs(all.data)
+    setMaterials(m.data)
+    setSites(s.data)
+    setDrivers(d.data)
+    setVehicles(v.data)
+  }
   useEffect(() => { load() }, [])
+  async function createJob() {
+    const material = materials.find((item) => item._id === form.materialTypeId)
+    await api.post('/admin/create-job', {
+      ...clean(form),
+      unit: form.unit || material?.units?.[0] || 'Dumper',
+      requiredQuantity: Number(form.requiredQuantity)
+    })
+    setForm(emptyJob); setNotice('Job created by administrator'); load()
+  }
   async function extend(job) {
     await api.post(`/admin/extend-job/${job._id}`, dates[job._id])
     setNotice('Job extended and made live again'); load()
   }
+  function addAssignment() { setForm({ ...form, assignments: [...form.assignments, { driverId: '', vehicleId: '' }] }) }
   return (
-    <section className="panel">
-      <PanelTitle icon={Briefcase} text="Expired jobs needing admin approval" />
-      <DataTable rows={jobs} columns={['materialName', 'sourceSiteName', 'destinationSiteName', 'requiredQuantity', 'completedQuantity', 'endDate']} actions={(job) => (
-        <div className="inline-form">
-          <input type="date" onChange={(e) => setDates({ ...dates, [job._id]: { ...dates[job._id], startDate: e.target.value } })} />
-          <input type="date" onChange={(e) => setDates({ ...dates, [job._id]: { ...dates[job._id], endDate: e.target.value } })} />
-          <IconButton title="Extend" onClick={() => extend(job)} icon={Save} />
-        </div>
-      )} />
-    </section>
+    <div className="stack">
+      <section className="panel">
+        <PanelTitle icon={Briefcase} text="Create job" />
+        <JobForm form={form} setForm={setForm} materials={materials} sites={sites} drivers={drivers} vehicles={vehicles} addAssignment={addAssignment} />
+        <button className="primary" onClick={createJob}><Plus size={16} />Create job</button>
+      </section>
+      <JobTable jobs={allJobs} />
+      <section className="panel">
+        <PanelTitle icon={Briefcase} text="Expired jobs needing admin approval" />
+        <DataTable rows={jobs} columns={['materialName', 'sourceSiteName', 'destinationSiteName', 'requiredQuantity', 'completedQuantity', 'endDate']} actions={(job) => (
+          <div className="inline-form">
+            <input type="date" onChange={(e) => setDates({ ...dates, [job._id]: { ...dates[job._id], startDate: e.target.value } })} />
+            <input type="date" onChange={(e) => setDates({ ...dates, [job._id]: { ...dates[job._id], endDate: e.target.value } })} />
+            <IconButton title="Extend" onClick={() => extend(job)} icon={Save} />
+          </div>
+        )} />
+      </section>
+    </div>
   )
 }
 

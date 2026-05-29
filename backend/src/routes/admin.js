@@ -11,6 +11,7 @@ import { DEFAULT_PASSWORD, hashPassword } from "../utils/password.js";
 import { uploadBase64Image } from "../utils/upload.js";
 import { refreshJobStatuses } from "../utils/jobs.js";
 import { generateAlerts } from "../utils/alerts.js";
+import { hydrateJobPayload } from "../utils/jobPayload.js";
 
 const router = express.Router();
 router.use(auth, allowRoles("admin"));
@@ -244,6 +245,18 @@ router.get("/attendance/:userId", async (req, res) => {
 router.get("/expired-jobs", async (_req, res) => {
   await refreshJobStatuses();
   res.json(await Job.find({ status: "expired" }).populate("materialTypeId sourceSiteId destinationSiteId assignments.driverId assignments.vehicleId"));
+});
+
+router.get("/jobs", async (_req, res) => {
+  await refreshJobStatuses();
+  res.json(await Job.find({}).populate("materialTypeId sourceSiteId destinationSiteId assignments.driverId assignments.vehicleId progressLogs.driverId progressLogs.vehicleId").sort({ startDate: -1 }));
+});
+
+router.post("/create-job", async (req, res) => {
+  const payload = await hydrateJobPayload(req.body);
+  const job = await Job.create({ ...payload, createdBy: req.user._id });
+  await refreshJobStatuses();
+  res.status(201).json(job);
 });
 
 router.post("/extend-job/:jobId", async (req, res) => {

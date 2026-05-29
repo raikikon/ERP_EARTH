@@ -1,50 +1,15 @@
 import express from "express";
 import Job from "../models/Job.js";
-import User from "../models/User.js";
-import Vehicle from "../models/Vehicle.js";
-import Site from "../models/Site.js";
-import Material from "../models/Material.js";
 import Attendance from "../models/Attendance.js";
 import { auth, allowRoles } from "../middleware/auth.js";
 import { refreshJobStatuses } from "../utils/jobs.js";
+import { buildAssignments, hydrateJobPayload } from "../utils/jobPayload.js";
 
 const router = express.Router();
 router.use(auth, allowRoles("operator"));
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
-}
-
-async function buildAssignments(assignments = []) {
-  const out = [];
-  for (const item of assignments) {
-    const driver = await User.findOne({ _id: item.driverId, role: "driver", isActive: true });
-    const vehicle = item.vehicleId ? await Vehicle.findById(item.vehicleId) : null;
-    if (driver) {
-      out.push({
-        driverId: driver._id,
-        driverName: driver.name,
-        vehicleId: vehicle?._id,
-        vehicleNumber: vehicle?.vehicleNumber || item.vehicleNumber || ""
-      });
-    }
-  }
-  return out;
-}
-
-async function hydrateJobPayload(body) {
-  const [material, source, destination] = await Promise.all([
-    Material.findById(body.materialTypeId),
-    Site.findById(body.sourceSiteId),
-    Site.findById(body.destinationSiteId)
-  ]);
-  return {
-    ...body,
-    materialName: material?.name,
-    sourceSiteName: source?.name,
-    destinationSiteName: destination?.name,
-    assignments: await buildAssignments(body.assignments)
-  };
 }
 
 router.get("/dashboard", async (req, res) => {
