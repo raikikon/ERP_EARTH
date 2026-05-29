@@ -521,6 +521,7 @@ function AdminJobs({ setNotice }) {
   const [vehicles, setVehicles] = useState([])
   const [form, setForm] = useState(emptyJob)
   const [dates, setDates] = useState({})
+  const [jobEdits, setJobEdits] = useState({})
   async function load() {
     const [expired, all, m, s, d, v] = await Promise.all([
       api.get('/admin/expired-jobs'),
@@ -552,6 +553,31 @@ function AdminJobs({ setNotice }) {
     setNotice('Job deleted')
     load()
   }
+  function editFor(job) {
+    const patch = jobEdits[job._id] || {}
+    const materialTypeId = patch.materialTypeId ?? materialValue(job.materialTypeId)
+    const material = materials.find((item) => item._id === materialTypeId)
+    const units = material?.units?.length ? material.units : [job.unit || 'Dumper', 'Tonn', 'Cubic Meter'].filter(Boolean)
+    return {
+      materialTypeId,
+      requiredQuantity: patch.requiredQuantity ?? job.requiredQuantity ?? '',
+      unit: patch.unit ?? job.unit ?? units[0],
+      units
+    }
+  }
+  function updateJobEdit(jobId, patch) {
+    setJobEdits((current) => ({ ...current, [jobId]: { ...current[jobId], ...patch } }))
+  }
+  async function updateJobMaterial(job) {
+    const edit = editFor(job)
+    await api.post(`/admin/update-job/${job._id}`, {
+      materialTypeId: edit.materialTypeId,
+      unit: edit.unit,
+      requiredQuantity: Number(edit.requiredQuantity)
+    })
+    setNotice('Job material updated')
+    load()
+  }
   async function extend(job) {
     await api.post(`/admin/extend-job/${job._id}`, dates[job._id])
     setNotice('Job extended and made live again'); load()
@@ -567,13 +593,28 @@ function AdminJobs({ setNotice }) {
       <JobTable jobs={allJobs} deleteJob={deleteJob} />
       <section className="panel">
         <PanelTitle icon={Briefcase} text="Expired jobs needing admin approval" />
-        <DataTable rows={jobs} columns={['materialName', 'sourceSiteName', 'destinationSiteName', 'requiredQuantity', 'completedQuantity', 'endDate']} actions={(job) => (
-          <div className="inline-form">
-            <input type="date" onChange={(e) => setDates({ ...dates, [job._id]: { ...dates[job._id], startDate: e.target.value } })} />
-            <input type="date" onChange={(e) => setDates({ ...dates, [job._id]: { ...dates[job._id], endDate: e.target.value } })} />
-            <IconButton title="Extend" onClick={() => extend(job)} icon={Save} />
-          </div>
-        )} />
+        <DataTable rows={jobs} columns={['status', 'materialName', 'sourceSiteName', 'destinationSiteName', 'requiredQuantity', 'completedQuantity', 'endDate']} actions={(job) => {
+          const edit = editFor(job)
+          return (
+            <div className="job-admin-action">
+              <input type="date" title="New start date" onChange={(e) => setDates({ ...dates, [job._id]: { ...dates[job._id], startDate: e.target.value } })} />
+              <input type="date" title="New end date" onChange={(e) => setDates({ ...dates, [job._id]: { ...dates[job._id], endDate: e.target.value } })} />
+              <IconButton title="Extend job" onClick={() => extend(job)} icon={Save} />
+              <select title="Material" value={edit.materialTypeId} onChange={(e) => {
+                const material = materials.find((item) => item._id === e.target.value)
+                updateJobEdit(job._id, { materialTypeId: e.target.value, unit: material?.units?.[0] || edit.unit })
+              }}>
+                {materials.map((material) => <option key={material._id} value={material._id}>{material.name}</option>)}
+              </select>
+              <select title="Unit" value={edit.unit} onChange={(e) => updateJobEdit(job._id, { unit: e.target.value })}>
+                {edit.units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+              </select>
+              <input type="number" title="Required quantity" min={job.completedQuantity || 0} value={edit.requiredQuantity} onChange={(e) => updateJobEdit(job._id, { requiredQuantity: e.target.value })} />
+              <IconButton title="Update material" onClick={() => updateJobMaterial(job)} icon={RefreshCcw} />
+              <IconButton title="Delete job" onClick={() => deleteJob(job)} icon={Trash2} />
+            </div>
+          )
+        }} />
       </section>
     </div>
   )

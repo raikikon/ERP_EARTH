@@ -59,6 +59,9 @@ try {
   const material = await step("create material", () =>
     request("POST", "/admin/create-material", { name: `Smoke Sand ${stamp}`, units: ["Dumper", "Tonn", "Cubic Meter"] }, adminToken)
   );
+  const editMaterial = await step("create material for job edit", () =>
+    request("POST", "/admin/create-material", { name: `Smoke Earth ${stamp}`, units: ["Truckload", "Tonn"] }, adminToken)
+  );
   await step("add material unit", () => request("POST", `/admin/add-material-unit/${material._id}`, { unit: "Quintal" }, adminToken));
   await step("remove material unit", () => request("POST", `/admin/remove-material-unit/${material._id}/Quintal`, {}, adminToken));
 
@@ -415,9 +418,36 @@ try {
   );
   const expiredJobs = await step("admin expired jobs list", () => request("GET", "/admin/expired-jobs", null, adminToken));
   if (!expiredJobs.some((item) => item._id === expiredJob._id)) throw new Error("Created expired job was not listed");
-  await step("admin extend expired job", () =>
-    request("POST", `/admin/extend-job/${expiredJob._id}`, { startDate: "2026-06-08", endDate: "2026-06-09" }, adminToken)
-  );
+  await step("admin edit expired job material", async () => {
+    const updated = await request(
+      "POST",
+      `/admin/update-job/${expiredJob._id}`,
+      { materialTypeId: editMaterial._id, unit: "Truckload", requiredQuantity: 12 },
+      adminToken
+    );
+    assert(updated.materialName === editMaterial.name, "Expired job material should update");
+    assert(updated.unit === "Truckload", "Expired job unit should update");
+    assert(updated.requiredQuantity === 12, "Expired job required quantity should update");
+    return updated;
+  });
+  await step("admin expired jobs list shows edited material", async () => {
+    const rows = await request("GET", "/admin/expired-jobs", null, adminToken);
+    const edited = rows.find((item) => item._id === expiredJob._id);
+    assert(edited?.materialName === editMaterial.name, "Expired job list should show edited material");
+    assert(edited?.requiredQuantity === 12, "Expired job list should show edited quantity");
+    return edited;
+  });
+  await step("admin extend expired job to pending", async () => {
+    const extended = await request("POST", `/admin/extend-job/${expiredJob._id}`, { startDate: "2026-06-08", endDate: "2026-06-09" }, adminToken);
+    assert(extended.status === "pending", "Extended future job should be pending");
+    return extended;
+  });
+  await step("admin delete extended pending job", () => request("POST", `/admin/delete-job/${expiredJob._id}`, {}, adminToken));
+  await step("admin deleted pending job disappears", async () => {
+    const rows = await request("GET", "/admin/jobs", null, adminToken);
+    assert(!rows.some((item) => item._id === expiredJob._id), "Deleted pending job should not appear in admin jobs");
+    return true;
+  });
 
   await step("common lists", async () => {
     await request("GET", "/common/materials", null, adminToken);

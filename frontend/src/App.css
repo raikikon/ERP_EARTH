@@ -643,6 +643,19 @@ td {
   white-space: nowrap;
 }
 
+.job-admin-action {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(132px, 1fr)) 38px minmax(150px, 1.2fr) minmax(100px, .7fr) 100px repeat(2, 38px);
+  gap: 8px;
+  align-items: center;
+  min-width: 860px;
+}
+
+.job-admin-action input,
+.job-admin-action select {
+  min-height: 38px;
+}
+
 .attendance-calendar {
   gap: 14px;
 }
@@ -832,6 +845,7 @@ td {
   .grid,
   .job-material-picker,
   .job-progress-action,
+  .job-admin-action,
   .attendance-summary,
   .site-material-row {
     grid-template-columns: 1fr;

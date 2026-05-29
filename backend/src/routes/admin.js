@@ -266,6 +266,34 @@ router.post("/delete-job/:jobId", async (req, res) => {
   res.json({ message: "Job deleted" });
 });
 
+router.post("/update-job/:jobId", async (req, res) => {
+  const job = await Job.findById(req.params.jobId);
+  if (!job) return res.status(404).json({ message: "Job not found" });
+
+  const update = {};
+  if (req.body.materialTypeId) {
+    const material = await Material.findById(req.body.materialTypeId);
+    if (!material) return res.status(404).json({ message: "Material not found" });
+    update.materialTypeId = material._id;
+    update.materialName = material.name;
+  }
+  if (req.body.unit) update.unit = req.body.unit;
+  if (req.body.requiredQuantity != null) {
+    const requiredQuantity = Number(req.body.requiredQuantity);
+    if (!Number.isFinite(requiredQuantity) || requiredQuantity <= 0) {
+      return res.status(400).json({ message: "Required quantity must be greater than 0" });
+    }
+    if (requiredQuantity < Number(job.completedQuantity || 0)) {
+      return res.status(400).json({ message: "Required quantity cannot be less than completed quantity" });
+    }
+    update.requiredQuantity = requiredQuantity;
+  }
+
+  const updated = await Job.findByIdAndUpdate(job._id, update, { new: true });
+  await refreshJobStatuses();
+  res.json(updated);
+});
+
 router.post("/extend-job/:jobId", async (req, res) => {
   const job = await Job.findByIdAndUpdate(
     req.params.jobId,
