@@ -547,6 +547,11 @@ function AdminJobs({ setNotice }) {
     })
     setForm(emptyJob); setNotice('Job created by administrator'); load()
   }
+  async function deleteJob(job) {
+    await api.post(`/admin/delete-job/${job._id}`)
+    setNotice('Job deleted')
+    load()
+  }
   async function extend(job) {
     await api.post(`/admin/extend-job/${job._id}`, dates[job._id])
     setNotice('Job extended and made live again'); load()
@@ -559,7 +564,7 @@ function AdminJobs({ setNotice }) {
         <JobForm form={form} setForm={setForm} materials={materials} sites={sites} drivers={drivers} vehicles={vehicles} addAssignment={addAssignment} />
         <button className="primary" onClick={createJob}><Plus size={16} />Create job</button>
       </section>
-      <JobTable jobs={allJobs} />
+      <JobTable jobs={allJobs} deleteJob={deleteJob} />
       <section className="panel">
         <PanelTitle icon={Briefcase} text="Expired jobs needing admin approval" />
         <DataTable rows={jobs} columns={['materialName', 'sourceSiteName', 'destinationSiteName', 'requiredQuantity', 'completedQuantity', 'endDate']} actions={(job) => (
@@ -780,7 +785,7 @@ function Alerts() {
   return <section className="panel"><DataTable rows={rows} columns={['severity', 'targetType', 'title', 'message', 'dueDate']} /></section>
 }
 
-function JobTable({ jobs = [], progress, addMaterial }) {
+function JobTable({ jobs = [], progress, addMaterial, deleteJob }) {
   const [entries, setEntries] = useState({})
   function entryFor(jobId) {
     return entries[jobId] || { driverId: '', quantity: '' }
@@ -803,29 +808,31 @@ function JobTable({ jobs = [], progress, addMaterial }) {
   return (
     <section className="panel">
       <PanelTitle icon={ClipboardList} text="Jobs" />
-      <DataTable rows={rows} columns={['status', 'materialName', 'route', 'progressText', 'lastEntry', 'drivers', 'startDate', 'endDate']} actions={addMaterial ? (row) => {
-        const remaining = Number(row.requiredQuantity || 0) - Number(row.completedQuantity || 0)
-        const entry = entryFor(row._id)
-        if (row.status === 'completed') return <span className="muted">Completed</span>
-        if (row.status === 'expired') return <span className="muted">Needs admin extension</span>
-        if (!row.assignments?.length) return <span className="muted">No driver assigned</span>
-        return (
-          <div className="job-progress-action">
-            <select value={entry.driverId} onChange={(event) => updateEntry(row._id, { driverId: event.target.value })}>
-              <option value="">Which driver?</option>
-              {row.assignments.map((assignment) => {
-                const id = assignment.driverId?._id || assignment.driverId
-                const name = assignment.driverName || assignment.driverId?.name || 'Driver'
-                return <option key={id} value={id}>{name}</option>
-              })}
-            </select>
-            <input type="number" min="0" max={remaining} step="0.01" placeholder={`Qty ${row.unit || ''}`} value={entry.quantity} onChange={(event) => updateEntry(row._id, { quantity: event.target.value })} />
-            <button className="primary" onClick={() => submitMaterial(row)} disabled={!entry.driverId || !entry.quantity}><Plus size={15} />Add</button>
-          </div>
-        )
-      } : progress ? (row) => (
-        <input className="small-input" type="number" defaultValue={row.completedQuantity} onBlur={(e) => progress(row, e.target.value)} />
-      ) : null} />
+      <DataTable rows={rows} columns={['status', 'materialName', 'route', 'progressText', 'lastEntry', 'drivers', 'startDate', 'endDate']} actions={(addMaterial || progress || deleteJob) ? (row) => {
+        if (addMaterial) {
+          const remaining = Number(row.requiredQuantity || 0) - Number(row.completedQuantity || 0)
+          const entry = entryFor(row._id)
+          if (row.status === 'completed') return <span className="muted">Completed</span>
+          if (row.status === 'expired') return <span className="muted">Needs admin extension</span>
+          if (!row.assignments?.length) return <span className="muted">No driver assigned</span>
+          return (
+            <div className="job-progress-action">
+              <select value={entry.driverId} onChange={(event) => updateEntry(row._id, { driverId: event.target.value })}>
+                <option value="">Which driver?</option>
+                {row.assignments.map((assignment) => {
+                  const id = assignment.driverId?._id || assignment.driverId
+                  const name = assignment.driverName || assignment.driverId?.name || 'Driver'
+                  return <option key={id} value={id}>{name}</option>
+                })}
+              </select>
+              <input type="number" min="0" max={remaining} step="0.01" placeholder={`Qty ${row.unit || ''}`} value={entry.quantity} onChange={(event) => updateEntry(row._id, { quantity: event.target.value })} />
+              <button className="primary" onClick={() => submitMaterial(row)} disabled={!entry.driverId || !entry.quantity}><Plus size={15} />Add</button>
+            </div>
+          )
+        }
+        if (progress) return <input className="small-input" type="number" defaultValue={row.completedQuantity} onBlur={(e) => progress(row, e.target.value)} />
+        return <IconButton title="Delete job" onClick={() => deleteJob(row)} icon={Trash2} />
+      } : null} />
     </section>
   )
 }

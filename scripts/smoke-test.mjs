@@ -356,6 +356,25 @@ try {
     assert(allocated.requiredQuantity === 5, "Primary driver job quantity mismatch");
     return allocated;
   });
+  await step("operator cannot delete jobs", async () => {
+    try {
+      await request("POST", `/operator/delete-job/${job._id}`, {}, operatorToken);
+    } catch (error) {
+      assert(error.message.includes("404"), "Operator delete attempt should be rejected");
+      return true;
+    }
+    throw new Error("Operator delete unexpectedly succeeded");
+  });
+  await step("admin delete job", () => request("POST", `/admin/delete-job/${adminJob._id}`, {}, adminToken));
+  await step("admin deleted job disappears from jobs and driver", async () => {
+    const [adminJobs, driverJobs] = await Promise.all([
+      request("GET", "/admin/jobs", null, adminToken),
+      request("GET", "/driver/jobs", null, driverToken)
+    ]);
+    assert(!adminJobs.some((item) => item._id === adminJob._id), "Deleted job should not remain in admin jobs");
+    assert(!driverJobs.some((item) => item._id === adminJob._id), "Deleted job should not remain visible to assigned driver");
+    return true;
+  });
 
   const driverTwoLogin = await step("second driver login", () => request("POST", "/auth/login", { phone: driverTwo.phone, password: "init@123" }));
   const driverTwoToken = driverTwoLogin.token;

@@ -259,6 +259,13 @@ router.post("/create-job", async (req, res) => {
   res.status(201).json(job);
 });
 
+router.post("/delete-job/:jobId", async (req, res) => {
+  const job = await Job.findByIdAndDelete(req.params.jobId);
+  if (!job) return res.status(404).json({ message: "Job not found" });
+  await Alert.updateMany({ targetType: "job", targetId: job._id }, { isResolved: true });
+  res.json({ message: "Job deleted" });
+});
+
 router.post("/extend-job/:jobId", async (req, res) => {
   const job = await Job.findByIdAndUpdate(
     req.params.jobId,
