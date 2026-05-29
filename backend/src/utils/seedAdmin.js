@@ -7,16 +7,19 @@ import { hashPassword, DEFAULT_PASSWORD } from "./password.js";
 dotenv.config();
 
 export async function seedAdmin() {
+  await User.collection.updateMany({}, { $unset: { email: "" } });
   const existing = await User.findOne({ role: "admin" });
   if (!existing) {
     await User.create({
       role: "admin",
       name: "Administrator",
       phone: "9999999999",
-      email: "admin@earthmovers.local",
       passwordHash: await hashPassword(DEFAULT_PASSWORD)
     });
-    console.log("Admin created: admin@earthmovers.local / init@123");
+    console.log("Admin created: 9999999999 / init@123");
+  } else if (!existing.phone) {
+    existing.phone = "9999999999";
+    await existing.save();
   }
 
   const defaults = [

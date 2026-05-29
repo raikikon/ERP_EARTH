@@ -1,6 +1,8 @@
 const apiBase = process.env.API_BASE_URL || "http://localhost:5050/api";
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5050";
 const stamp = Date.now().toString().slice(-6);
+const today = new Date().toISOString().slice(0, 10);
+const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 const results = [];
 
 function assert(condition, message) {
@@ -48,7 +50,7 @@ try {
   });
 
   const adminLogin = await step("admin login", () =>
-    request("POST", "/auth/login", { email: "admin@earthmovers.local", password: "init@123" })
+    request("POST", "/auth/login", { phone: "9999999999", password: "init@123" })
   );
   const adminToken = adminLogin.token;
 
@@ -159,7 +161,6 @@ try {
       {
         name: `Smoke Driver ${stamp}`,
         phone: `81${stamp}00`,
-        email: `driver${stamp}@earth.local`,
         address: "Driver address",
         aadharNumber: `AAD${stamp}`,
         dlNumber: `DL-${stamp}`,
@@ -175,7 +176,6 @@ try {
       {
         name: `Smoke Driver Two ${stamp}`,
         phone: `83${stamp}00`,
-        email: `driver.two${stamp}@earth.local`,
         address: "Second driver address",
         aadharNumber: `AAD2${stamp}`,
         dlNumber: `DL2-${stamp}`,
@@ -195,7 +195,7 @@ try {
     request(
       "POST",
       "/admin/create-operator",
-      { name: `Smoke Operator ${stamp}`, phone: `82${stamp}00`, email: `operator${stamp}@earth.local`, address: "Operator office" },
+      { name: `Smoke Operator ${stamp}`, phone: `82${stamp}00`, address: "Operator office" },
       adminToken
     )
   );
@@ -204,7 +204,7 @@ try {
     request(
       "POST",
       "/admin/mark-attendance",
-      { userId: operator._id, date: "2026-05-28", status: "present", checkInTime: "2026-05-28T05:20:00.000Z" },
+      { userId: operator._id, date: today, status: "present", checkInTime: `${today}T05:20:00.000Z` },
       adminToken
     )
   );
@@ -212,7 +212,7 @@ try {
     request(
       "POST",
       "/admin/mark-attendance",
-      { userId: driver._id, date: "2026-05-28", status: "present", vehicleId: vehicle._id, checkInTime: "2026-05-28T05:30:00.000Z" },
+      { userId: driver._id, date: today, status: "present", vehicleId: vehicle._id, checkInTime: `${today}T05:30:00.000Z` },
       adminToken
     )
   );
@@ -220,7 +220,7 @@ try {
     request(
       "POST",
       "/admin/mark-attendance",
-      { userId: driver._id, date: "2026-05-27", status: "absent" },
+      { userId: driver._id, date: yesterday, status: "absent" },
       adminToken
     )
   );
@@ -228,15 +228,15 @@ try {
     request(
       "POST",
       "/admin/mark-attendance",
-      { userId: driverTwo._id, date: "2026-05-28", status: "present", vehicleId: vehicleTwo._id, checkInTime: "2026-05-28T05:40:00.000Z" },
+      { userId: driverTwo._id, date: today, status: "present", vehicleId: vehicleTwo._id, checkInTime: `${today}T05:40:00.000Z` },
       adminToken
     )
   );
   await step("admin attendance calendar data shows present and absent", async () => {
     const history = await request("GET", `/admin/attendance/${driver._id}`, null, adminToken);
     assert(history.user?._id === driver._id, "Attendance history should include selected user");
-    assert(history.attendance?.some((item) => item.date === "2026-05-28" && item.status === "present"), "Attendance calendar data should include present day");
-    assert(history.attendance?.some((item) => item.date === "2026-05-27" && item.status === "absent"), "Attendance calendar data should include absent day");
+    assert(history.attendance?.some((item) => item.date === today && item.status === "present"), "Attendance calendar data should include present day");
+    assert(history.attendance?.some((item) => item.date === yesterday && item.status === "absent"), "Attendance calendar data should include absent day");
     return history;
   });
   await step("admin driver and operator lists show today attendance", async () => {
@@ -253,7 +253,7 @@ try {
     return true;
   });
 
-  const operatorLogin = await step("operator login", () => request("POST", "/auth/login", { email: operator.email, password: "init@123" }));
+  const operatorLogin = await step("operator login", () => request("POST", "/auth/login", { phone: operator.phone, password: "init@123" }));
   const operatorToken = operatorLogin.token;
   const job = await step("operator create future job", () =>
     request(
@@ -310,7 +310,7 @@ try {
     return allocated;
   });
 
-  const driverLogin = await step("driver login", () => request("POST", "/auth/login", { email: driver.email, password: "init@123" }));
+  const driverLogin = await step("driver login", () => request("POST", "/auth/login", { phone: driver.phone, password: "init@123" }));
   const driverToken = driverLogin.token;
   await step("driver mark attendance today", () => request("POST", "/driver/mark-attendance", { vehicleId: vehicle._id }, driverToken));
   await step("driver dashboard shows allocated job", async () => {
@@ -329,7 +329,7 @@ try {
     return allocated;
   });
 
-  const driverTwoLogin = await step("second driver login", () => request("POST", "/auth/login", { email: driverTwo.email, password: "init@123" }));
+  const driverTwoLogin = await step("second driver login", () => request("POST", "/auth/login", { phone: driverTwo.phone, password: "init@123" }));
   const driverTwoToken = driverTwoLogin.token;
   await step("second driver mark attendance today", () => request("POST", "/driver/mark-attendance", { vehicleId: vehicleTwo._id }, driverTwoToken));
   await step("second driver dashboard shows same allocated job", async () => {

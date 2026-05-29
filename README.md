@@ -43,7 +43,7 @@ npm run smoke:test
 Admin account is seeded automatically:
 
 ```text
-admin@earthmovers.local
+9999999999
 init@123
 ```
 

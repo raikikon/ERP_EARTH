@@ -29,9 +29,9 @@ const api = axios.create({ baseURL: '/api' })
 const savedToken = localStorage.getItem('erpToken') || ''
 if (savedToken) api.defaults.headers.common.Authorization = `Bearer ${savedToken}`
 
-const defaultLogin = { email: 'admin@earthmovers.local', phone: '', password: 'init@123' }
-const emptyDriver = { name: '', phone: '', email: '', address: '', govtIdNumber: '', aadharNumber: '', dlNumber: '', dlValidity: '', photoUrl: '', aadharPhotoUrl: '' }
-const emptyOperator = { name: '', phone: '', email: '', address: '', photoUrl: '' }
+const defaultLogin = { phone: '9999999999', password: 'init@123' }
+const emptyDriver = { name: '', phone: '', address: '', govtIdNumber: '', aadharNumber: '', dlNumber: '', dlValidity: '', photoUrl: '', aadharPhotoUrl: '' }
+const emptyOperator = { name: '', phone: '', address: '', photoUrl: '' }
 const emptyVehicle = { name: '', brand: '', model: '', type: 'dumper', vehicleNumber: '', registrationNumber: '', registrationDate: '', photoUrl: '' }
 const emptyMaterial = { name: '', unitsText: 'Dumper, Tonn, Cubic Meter' }
 const emptySite = { name: '', type: 'holding', address: '', latitude: '', longitude: '', siteKeeperName: '', siteKeeperPhone: '' }
@@ -152,8 +152,7 @@ function Login({ onLogin, setNotice }) {
         <h1>Operations login</h1>
         <p className="muted">Manage material movement, vehicles, drivers, documents, attendance, and expired job approvals.</p>
         <form onSubmit={submit} className="form stack">
-          <label>Email<input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value, phone: '' })} /></label>
-          <label>Phone<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value, email: '' })} /></label>
+          <label>Phone number<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
           <label>Password<input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
           <button className="primary" disabled={busy}><ShieldCheck size={18} />{busy ? 'Signing in' : 'Sign in'}</button>
         </form>
@@ -274,7 +273,7 @@ function People({ role, empty, setNotice }) {
       <section className="panel wide">
         <DataTable
           rows={rows.map((row) => ({ ...row, presentToday: presenceCell(row.todayAttendance) }))}
-          columns={['presentToday', 'name', 'phone', 'email', role === 'driver' ? 'dlNumber' : 'address', role === 'driver' ? 'dlValidity' : 'createdAt']}
+          columns={['presentToday', 'name', 'phone', role === 'driver' ? 'dlNumber' : 'address', role === 'driver' ? 'dlValidity' : 'createdAt']}
           actions={(row) => (
             <>
               <IconButton title="View profile" onClick={() => { setSelected(row); setForm({ ...empty, ...row, dlValidity: dateInput(row.dlValidity) }) }} icon={Eye} />
@@ -294,7 +293,6 @@ function UserForm({ form, setForm, role }) {
     <div className="form grid">
       <Field label="Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
       <Field label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-      <Field label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
       <Field label="Address" value={form.address} onChange={(v) => setForm({ ...form, address: v })} />
       <ImageField label="Photo" onChange={(v) => setForm({ ...form, photoUrl: v })} />
       {role === 'driver' && <>
@@ -876,7 +874,7 @@ function Profile({ entity }) {
   return (
     <div className="profile">
       <h2>{entity.name}</h2>
-      <p>{entity.address || entity.email || entity.phone}</p>
+      <p>{entity.address || entity.phone}</p>
       <h3>Attendance</h3>
       <DataTable rows={attendanceRows} columns={['date', 'status', 'vehicle', 'markedAt']} />
       <h3>Documents</h3>

@@ -23,6 +23,7 @@ function todayKey() {
 
 async function withUploadedImages(payload, fields) {
   const next = { ...payload };
+  delete next.email;
   for (const field of fields) {
     if (next[field]) next[field] = await uploadBase64Image(next[field]);
   }
