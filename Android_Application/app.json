@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Earth Soil ERP",
+    "slug": "earth-soil-erp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "earthsoilerp",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.rsdcon.earthsoilerp",
+      "permissions": [
+        "READ_MEDIA_IMAGES"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#15372e"
+      }
+    },
+    "extra": {
+      "apiBaseUrl": "https://rsdcon.vercel.app/api"
+    }
+  }
+}

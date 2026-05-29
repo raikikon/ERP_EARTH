@@ -30,6 +30,14 @@ Frontend:
 npm --prefix frontend run dev -- --host 127.0.0.1
 ```
 
+Android app:
+
+```bash
+cd Android_Application
+npm install
+npm run android
+```
+
 The backend runs on `http://localhost:5050` because port `5000` is already used on this machine. After `npm run build`, opening `http://localhost:5050` serves the frontend from the backend. For live frontend development, the Vite server still runs on `http://127.0.0.1:5173`.
 
 Smoke test the full role workflow while both servers are running:
