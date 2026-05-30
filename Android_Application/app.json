@@ -20,6 +20,9 @@
     },
     "extra": {
       "apiBaseUrl": "https://rsdcon.vercel.app/api"
+    },
+    "ios": {
+      "bundleIdentifier": "com.rsdcon.earthsoilerp"
     }
   }
 }

@@ -355,9 +355,16 @@ try {
     assert(allocated, "Primary driver jobs missing allocated job");
     assert(jobs.some((item) => item._id === adminJob._id), "Primary driver jobs missing admin-created job");
     assert(allocated.completedQuantity === 2, "Primary driver job progress mismatch");
-    assert(allocated.progressLogs?.some((item) => item.driverId === driver._id && item.quantity === 2), "Primary driver job log missing selected driver");
+    assert(allocated.progressLogs?.some((item) => (item.driverId?._id || item.driverId) === driver._id && item.quantity === 2), "Primary driver job log missing selected driver");
     assert(allocated.requiredQuantity === 5, "Primary driver job quantity mismatch");
     return allocated;
+  });
+  await step("driver adds own material dump", async () => {
+    const updated = await request("POST", `/driver/add-material/${job._id}`, { quantity: 1, unit: "Dumper", note: "Driver dumped at destination" }, driverToken);
+    assert(updated.completedQuantity === 3, "Driver material dump should increase completed quantity to 3");
+    assert(updated.progressLogs?.some((item) => (item.driverId?._id || item.driverId) === driver._id && item.quantity === 1), "Driver dump log should store logged-in driver");
+    assert(updated.progressLogs?.some((item) => item.note === "Driver dumped at destination"), "Driver dump note should be stored");
+    return updated;
   });
   await step("operator cannot delete jobs", async () => {
     try {
@@ -392,8 +399,9 @@ try {
     const jobs = await request("GET", "/driver/jobs", null, driverTwoToken);
     const allocated = jobs.find((item) => item._id === job._id);
     assert(allocated, "Second driver jobs missing allocated job");
-    assert(allocated.completedQuantity === 2, "Second driver job progress mismatch");
-    assert(allocated.progressLogs?.some((item) => item.driverId === driver._id && item.quantity === 2), "Second driver job log missing selected driver");
+    assert(allocated.completedQuantity === 3, "Second driver job progress mismatch");
+    assert(allocated.progressLogs?.some((item) => (item.driverId?._id || item.driverId) === driver._id && item.quantity === 2), "Second driver job log missing selected driver");
+    assert(allocated.progressLogs?.some((item) => (item.driverId?._id || item.driverId) === driver._id && item.quantity === 1), "Second driver job log missing driver self dump");
     assert(allocated.assignments?.length === 2, "Second driver should see both job assignments");
     return allocated;
   });

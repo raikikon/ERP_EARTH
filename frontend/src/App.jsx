@@ -214,7 +214,7 @@ function Operator({ active, setNotice }) {
 }
 
 function Driver({ active, setNotice }) {
-  if (active === 'jobs') return <DriverJobs />
+  if (active === 'jobs') return <DriverJobs setNotice={setNotice} />
   if (active === 'attendance') return <DriverAttendance />
   return <DriverDashboard setNotice={setNotice} />
 }
@@ -712,10 +712,29 @@ function DriverDashboard({ setNotice }) {
   )
 }
 
-function DriverJobs() {
+function DriverJobs({ setNotice }) {
   const [jobs, setJobs] = useState([])
-  useEffect(() => { api.get('/driver/jobs').then((r) => setJobs(r.data)) }, [])
-  return <JobTable jobs={jobs} />
+  async function load() {
+    const response = await api.get('/driver/jobs')
+    setJobs(response.data)
+  }
+  useEffect(() => { load() }, [])
+  async function addMaterial(job, entry) {
+    try {
+      await api.post(`/driver/add-material/${job._id}`, {
+        quantity: Number(entry.quantity),
+        unit: job.unit,
+        note: entry.note
+      })
+      setNotice('Material dump added to job')
+      load()
+      return true
+    } catch (error) {
+      setNotice(error.response?.data?.message || 'Material dump update failed', 'error')
+      return false
+    }
+  }
+  return <JobTable jobs={jobs} addMaterial={addMaterial} driverProgress />
 }
 
 function DriverAttendance() {
@@ -826,10 +845,10 @@ function Alerts() {
   return <section className="panel"><DataTable rows={rows} columns={['severity', 'targetType', 'title', 'message', 'dueDate']} /></section>
 }
 
-function JobTable({ jobs = [], progress, addMaterial, deleteJob }) {
+function JobTable({ jobs = [], progress, addMaterial, deleteJob, driverProgress = false }) {
   const [entries, setEntries] = useState({})
   function entryFor(jobId) {
-    return entries[jobId] || { driverId: '', quantity: '' }
+    return entries[jobId] || { driverId: '', quantity: '', note: '' }
   }
   function updateEntry(jobId, patch) {
     setEntries((current) => ({ ...current, [jobId]: { ...entryFor(jobId), ...patch } }))
@@ -837,7 +856,7 @@ function JobTable({ jobs = [], progress, addMaterial, deleteJob }) {
   async function submitMaterial(row) {
     const entry = entryFor(row._id)
     const saved = await addMaterial(row, entry)
-    if (saved) setEntries((current) => ({ ...current, [row._id]: { driverId: '', quantity: '' } }))
+    if (saved) setEntries((current) => ({ ...current, [row._id]: { driverId: '', quantity: '', note: '' } }))
   }
   const rows = jobs.map((j) => ({
     ...j,
@@ -855,7 +874,16 @@ function JobTable({ jobs = [], progress, addMaterial, deleteJob }) {
           const entry = entryFor(row._id)
           if (row.status === 'completed') return <span className="muted">Completed</span>
           if (row.status === 'expired') return <span className="muted">Needs admin extension</span>
-          if (!row.assignments?.length) return <span className="muted">No driver assigned</span>
+          if (!driverProgress && !row.assignments?.length) return <span className="muted">No driver assigned</span>
+          if (driverProgress) {
+            return (
+              <div className="job-progress-action">
+                <input type="number" min="0" max={remaining} step="0.01" placeholder={`Qty ${row.unit || ''}`} value={entry.quantity} onChange={(event) => updateEntry(row._id, { quantity: event.target.value })} />
+                <input placeholder="Note" value={entry.note} onChange={(event) => updateEntry(row._id, { note: event.target.value })} />
+                <button className="primary" onClick={() => submitMaterial(row)} disabled={!entry.quantity || Number(entry.quantity) <= 0 || Number(entry.quantity) > remaining}><Plus size={15} />Add dump</button>
+              </div>
+            )
+          }
           return (
             <div className="job-progress-action">
               <select value={entry.driverId} onChange={(event) => updateEntry(row._id, { driverId: event.target.value })}>

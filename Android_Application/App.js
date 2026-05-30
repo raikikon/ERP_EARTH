@@ -196,7 +196,7 @@ function Operator({ token, active, notify }) {
 }
 
 function Driver({ token, active, notify }) {
-  if (active === "jobs") return <DriverJobs token={token} />;
+  if (active === "jobs") return <DriverJobs token={token} notify={notify} />;
   if (active === "attendance") return <DriverAttendance token={token} />;
   return <DriverDashboard token={token} notify={notify} />;
 }
@@ -708,10 +708,60 @@ function DriverDashboard({ token, notify }) {
   );
 }
 
-function DriverJobs({ token }) {
+function DriverJobs({ token, notify }) {
+  const [dumps, setDumps] = useState({});
   const { data = [], loading, reload } = useApi(token, (api) => api.get("/driver/jobs"));
+
+  function dumpFor(jobId) {
+    return dumps[jobId] || { quantity: "", note: "" };
+  }
+
+  async function addDump(job) {
+    const entry = dumpFor(job._id);
+    try {
+      await makeApi(token).post(`/driver/add-material/${job._id}`, {
+        quantity: Number(entry.quantity),
+        unit: job.unit,
+        note: entry.note
+      });
+      setDumps((current) => ({ ...current, [job._id]: { quantity: "", note: "" } }));
+      notify("Material dump added to job");
+      reload();
+    } catch (error) {
+      notify(error.message || "Material dump update failed");
+    }
+  }
+
   if (loading) return <Loader />;
-  return <Stack><RefreshButton onPress={reload} /><Section title="Assigned jobs"><JobList jobs={data} /></Section></Stack>;
+  return (
+    <Stack>
+      <RefreshButton onPress={reload} />
+      <Section title="Assigned jobs">
+        {data.map((job) => {
+          const entry = dumpFor(job._id);
+          const remaining = Math.max(0, Number(job.requiredQuantity || 0) - Number(job.completedQuantity || 0));
+          const canDump = !["completed", "expired"].includes(job.status) && remaining > 0;
+          return (
+            <Card key={job._id}>
+              <JobSummary job={job} />
+              {canDump ? (
+                <View style={styles.dumpPanel}>
+                  <Text style={styles.subheading}>Dump material to site</Text>
+                  <Text style={styles.muted}>Remaining: {remaining} {job.unit || ""}</Text>
+                  <Field label={`Quantity ${job.unit || ""}`} value={entry.quantity} keyboardType="numeric" onChangeText={(quantity) => setDumps((current) => ({ ...current, [job._id]: { ...entry, quantity } }))} />
+                  <Field label="Note" value={entry.note} onChangeText={(note) => setDumps((current) => ({ ...current, [job._id]: { ...entry, note } }))} />
+                  <Button label="Add dump" onPress={() => addDump(job)} disabled={!entry.quantity || Number(entry.quantity) <= 0 || Number(entry.quantity) > remaining} />
+                </View>
+              ) : (
+                <Text style={styles.warningText}>{job.status === "expired" ? "Needs admin extension before dumping material" : "Job material is complete"}</Text>
+              )}
+            </Card>
+          );
+        })}
+        {!data.length && <Text style={styles.muted}>No assigned jobs yet.</Text>}
+      </Section>
+    </Stack>
+  );
 }
 
 function DriverAttendance({ token }) {
@@ -1292,6 +1342,7 @@ const styles = StyleSheet.create({
   recordText: { color: colors.ink, fontWeight: "700", lineHeight: 20 },
   muted: { color: colors.muted, fontWeight: "700" },
   warningText: { color: colors.clay, fontWeight: "900" },
+  dumpPanel: { marginTop: 4, backgroundColor: "#f8faf8", borderRadius: 8, borderWidth: 1, borderColor: colors.line, padding: 12, gap: 10 },
   badge: { alignSelf: "flex-start", backgroundColor: "#eef4ef", color: colors.forest2, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, overflow: "hidden", fontWeight: "900", marginVertical: 6 },
   calendarToolbar: { flexDirection: "row", alignItems: "center", gap: 10 },
   calendarButtons: { flexDirection: "row", alignItems: "center", gap: 8 },
